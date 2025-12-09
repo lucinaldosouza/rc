@@ -21,17 +21,7 @@ function build_Q(a_size, z_size, s_i_vals, z_chain)
         end
     end
 
-    #= for s in 1:n
-        cur_z = s_i_vals[s, 2]                # índice de produtividade atual
-
-        for a_idx in 1:a_size                 # cada ação = ativo escolhido
-            # estados de destino têm SEMPRE esse ativo
-            for z′ in 1:z_size
-                next_s = (a_idx - 1) * z_size + z′   # (ativo = a_idx , z = z′)
-                Q[s, a_idx, next_s] = z_chain.p[cur_z, z′]
-            end
-        end
-    end =#
+    
     return Q
 end
 
@@ -520,14 +510,6 @@ P = [0.417058294170583     0.1928807119288071    0.11768823117688232   0.0820917
     0.007301460292058411  0.020404080816163232  0.02090418083616723   0.027505501100220042  0.03250650130026005   0.031906381276255245  0.05251050210042008   0.08681736347269454   0.1807361472294459    0.5394078815763153]
 n_grid = [0.17; 0.42; 0.70; 0.76; 0.83; 1.0; 1.22; 1.55; 2.20; 5.53]
 
-
-#= P = [0.9 0.025 0.025 0.025 0.025;
-    0.025 0.9 0.025 0.025 0.025;
-    0.025 0.025 0.9 0.025 0.025;
-    0.025 0.025 0.025 0.9 0.025;
-    0.025 0.025 0.025 0.025 0.9]
-n_grid = [1, 2, 3, 4, 5] =#
-
 inv_P = P^1000
 inv_P = inv_P[1,:]
 
@@ -567,7 +549,6 @@ plot(k_vals, [r_inverse_demand_vals r_vals], label = labels, lw = 2,
      alpha = 0.6, title = "novo com gov: beta = 0.98, cmin = 1.5, \n λ = .525, z_n = 10", dpi=1000)
 plot!(xlabel = "capital", ylabel = "interest rate")
 png("C:\\Users\\lucinaldosouza\\Pictures\\novo_gov_n7_distr")
-# savefig("C:\\Users\\lucinaldosouza\\Pictures\\eq_cmin_4_5_2.png")
 
 # Variáveis de equilíbrio
 r_eq, K_eq, L_eq, w_eq, excDem, G_eq, C_eq, Y_eq, c_vec,
@@ -704,22 +685,13 @@ using Optim
 # beta 0.88 ate 0.98 com 11 pontos
 
 lower_bounds = [0.83, 0.2, 0.3]  # beta, cs e lambda_IR mínimo
-# lower_bounds = [0.85, 1.3, 0.005] # # new
-# upper_bounds = [0.99, 2.0, 0.99999]  # beta, cs e lambda_IR máximo
 upper_bounds = [0.99, 2.0, 1.0]  # beta, cs e lambda_IR máximo
-# upper_bounds = [0.99, 1.7, 1.05] # new
 
-# target moments (antes 2.55, 1.5 e 0.8 => k/y, cmin gasto do governo)
-data_moments = [2.55, 0.80, 0.196] # K/Y, % de pessoas sem poupança, G/Y
-# % de pessoas com consumo < media, disp do consumo, % de pessoas que consomem ~90% da renda
-# weighting matrix (identidade)
+
+data_moments = [2.55, 0.80, 0.196]
 W = LinearAlgebra.I(length(data_moments))
 
 params_initial = [0.88806, 1.44798, 0.768577]
-# Melhor perda (BlackBoxOptim): -2.316293523670042
-
-# vetor_perdas = []
-# vetor_bool = []
 
 function gmm_objective(params)
     
@@ -744,27 +716,9 @@ function gmm_objective(params)
     
     # Penalidade por não convergência
     penalty = converged ? 0.0 : 5.0 + ℯ^(dist)
-    
-    # Distribuição estacionária
-    #am = Household(; beta, a_max, w = w_eq, r = r_eq, cmin = cs, τ_c   ,Nivel_IR = lambda)
-    #aiyagari_ddp = DiscreteDP(am.R, am.Q, am.beta)
-    #results = QuantEcon.solve(aiyagari_ddp, VFI)
-    #stationary_probs = stationary_distributions(results.mc)[:, 1][1]
-    
-    # momento para cmin: prop de pessoas que não fazem poupança ou não tem ativo
-    # momento para Nivel_IR: (Consumo do gov - variação de dívidas)/ Y
-
-    
 
     # Fração de indivíduos abaixo da média (< C_eq)
     frac_c = sum( (c_vec .< C_eq) .* stationary_probs )
-
-    # Compute model moments
-    #= model_moments = [
-        K_eq / Y_eq,  # Capital-output ratio
-        frac_c,  # Consumption ratio # mudar p/ target cmin ou outro
-        G_eq / Y_eq   # Debt ratio
-    ] =#
 
     @show model_moments
     
@@ -779,25 +733,13 @@ function gmm_objective(params)
         best_params = params
         best_moments = model_moments
     end
-    # @show best_obj = min(best_obj, obj)
-
-    # push!(vetor_perdas, obj)
-
-    #= if length(vetor_perdas) > 1
-        push!(vetor_bool, vetor_perdas[end] > vetor_perdas[end-1])
-    end =#
-
-    # @show vetor_perdas, vetor_bool
+    
 
     return obj
 end
 
 gmm_objective(params_initial)
 
-# 0.96, 2, 0.9999 = -0.43
-
-# Otimizando por Nelder-Mead/Fminbox
-# result = optimize(gmm_objective, params_initial, NelderMead())
 
 # Otimizando por Fminbox
 result = optimize(gmm_objective, lower_bounds, upper_bounds, params_initial, Fminbox())
@@ -822,11 +764,7 @@ using Plots
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Parâmetros best
-# params_best  = [0.8775, 1.5235, 0.8954]     # [β, cmin, λ_IR]
-# params_best  = [0.8773, 1.3757, 0.9999]     # [β, cmin, λ_IR]
 params_best  = [0.875480813067229, 1.3751372838375977, 0.9999]
-# best_loss    = -1.2684                      # log da perda (Q) que você reportou
-# best_loss    = -2.1946                      # log da perda (Q) que você reportou
 best_loss = -2.318672633822192
 # Gerando grid em torno de cada parâmetro (11 pontos, passo h)
 function profile_axis(idx; h=0.02, n=11)
@@ -873,10 +811,6 @@ png("C:\\Users\\lucinaldosouza\\Pictures\\graf_3d")
 # --------------------- Utilizando um Otimizador Global ---------------------------
 using BlackBoxOptim
 
-# Bounds: (lower, upper)
-# search_range = [(0.85, 0.99), (0.8, 2.0), (0.5, 0.9999)]
-# [0.8928117980424218, 1.5085771594328778, 0.9999] best_parameters
-# search_range = best_parameters ± 0.10
 search_range = [(0.79, 0.99), (1.10, 1.50), (0.700, 0.9999)]
 
 
@@ -893,11 +827,7 @@ println("Melhores parâmetros (BlackBoxOptim): ", best_candidate(result_bb))
 println("Melhor perda (BlackBoxOptim): ", best_fitness(result_bb))
 
 
-# beta = 0.9, cmin = 0.9, γ = 3, λ = 0.9999
-# ver cmin com mudança do γ
-
 # ---------- Visualizando a Função Objetivo ----------------
-
 using Plots
 
 # Fixe lambda no limite que ele atingiu
@@ -921,4 +851,5 @@ end
 
 # plot da superfície
 plot(beta_grid, cs_grid, loss_surface', st=:surface, camera=(-10, 10),
+
      xlabel="Beta", ylabel="cs", zlabel="Função Objetivo (log(Q))", dpi = 1000)
